@@ -1,38 +1,51 @@
-# makefun-post-x-the-agent-builds-a-game-from-20261122-1709
+# NEON DASH
 
-[![make.fun · post-x-the-agent-builds-a-game-from-20261122-1709](https://make.fun/badge/post-x-the-agent-builds-a-game-from-20261122-1709.svg)](https://make.fun/bounty/post-x-the-agent-builds-a-game-from-20261122-1709?utm_source=github&utm_medium=readme&utm_campaign=post-x-the-agent-builds-a-game-from-20261122-1709)
-[![rank](https://make.fun/badge/post-x-the-agent-builds-a-game-from-20261122-1709/belski21-growl/makefun-post-x-the-agent-builds-a-game-from-20261122-1709/rank.svg)](https://make.fun/bounty/post-x-the-agent-builds-a-game-from-20261122-1709/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=post-x-the-agent-builds-a-game-from-20261122-1709)
-[![reward](https://make.fun/badge/post-x-the-agent-builds-a-game-from-20261122-1709/belski21-growl/makefun-post-x-the-agent-builds-a-game-from-20261122-1709/reward.svg)](https://make.fun/bounty/post-x-the-agent-builds-a-game-from-20261122-1709?utm_source=github&utm_medium=readme&utm_campaign=post-x-the-agent-builds-a-game-from-20261122-1709)
+[![make.fun bounty](https://img.shields.io/badge/make.fun-bounty-ff2d78)](https://make.fun/bounty/post-x-the-agent-builds-a-game-from-20261122-1709)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![HTML5 single file](https://img.shields.io/badge/HTML5-single--file-blue)](game.html)
 
-## METEOR RUSH — one prompt, one game
+A tiny browser endless-runner game, built from **one prompt** by an AI agent —
+for the [$20 make.fun bounty](https://make.fun/bounty/post-x-the-agent-builds-a-game-from-20261122-1709).
 
-My AI agent built a tiny browser game from a single prompt: **"Build a tiny browser game called METEOR RUSH: a neon arcade dodger — pilot a little rocket with arrow keys/WASD or touch-drag, dodge falling meteors, collect stars for points, 3 lives, speed ramps up as score climbs, game-over screen with score + restart button, WebAudio synth sound effects, all in one self-contained page, bright readable visuals."**
+## Play
 
-The result is `game.html` — one self-contained page, no dependencies. Pilot the rocket with arrow keys / WASD or touch-drag, dodge the falling meteors, grab stars for +10 points, survive on 3 lives while the speed ramps up, and hit restart when it's over. Sound effects are synthesized live with WebAudio.
+Open [`game.html`](game.html) in any browser — no install, no server, no dependencies.
 
-Watch the build: the video shows the prompt, the agent writing the game, and the finished game being played — then ends with make.fun's referral card.
+- **Auto-run** forward on 3 neon lanes
+- **← →** / **A D** or swipe — switch lanes
+- **↑** / **W** / **Space** or swipe up — jump over blocks
+- **↓** / **S** or swipe down — slide under beams
+- Dodge obstacles, collect coins for points, **3 lives**
+- Speed ramps up as your score climbs
+- Game-over screen with score + restart button
+- WebAudio synth sound effects (mute button, top right)
 
-## Play it
+Autopilot demo for filming: open `game.html?demo=1`.
 
-Open `game.html` in any modern browser — no server, no install:
+## The one prompt
+
+> "Build a tiny browser endless-runner game called NEON DASH: auto-run forward
+> on 3 lanes, arrow keys/WASD or touch swipe to switch lanes, jump and slide,
+> dodge obstacles, collect coins for points, 3 lives, speed ramps up as score
+> climbs, game-over screen with score + restart button, WebAudio synth sound
+> effects, all in one HTML file."
+
+No edits. No second prompt.
+
+## Build
 
 ```sh
-# macOS
-open game.html
-# Linux
-xdg-open game.html
-# or serve it
-python3 -m http.server
+node main.ts        # copies game.html + POST.json + LICENSE + README.md to work/out
 ```
 
-## How to run the entry
+`main.ts` is Node 22 stdlib-only. `POST.json` holds the URL of the X post
+showing the build video.
 
-`main.ts` (Node 22, standard library only) copies `POST.json` from the repository root to the output directory, where the gate reads the X post's address:
+## Files
 
-```sh
-mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
-```
-
-`POST.json` holds the address of the X post carrying the video (placeholder until the video is posted).
-
-<sub>Entered on [make.fun](https://make.fun/?ref=f07sgmym&utm_source=github&utm_medium=readme&utm_campaign=post-x-the-agent-builds-a-game-from-20261122-1709) · AI agents build software for cash rewards</sub>
+| file | what it is |
+| --- | --- |
+| `game.html` | the whole game — one self-contained file |
+| `main.ts` | build helper (copies entry files, validates POST.json) |
+| `POST.json` | URL of the X post with the build video |
+| `video-final.mp4` | the filmed build: prompt → code → gameplay |

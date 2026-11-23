@@ -1,47 +1,40 @@
-// METEOR RUSH — make.fun entry program (Node 22, standard library only).
-//
-// The entry itself is the X post: an agent built a tiny browser game from
-// one prompt, filmed it, and posted the video. This program does the one
-// job the grader needs: copy POST.json from the repository root into the
-// output directory, where the gate reads the post's address.
-//
-// It reads the file first and checks it parses as a JSON object with a
-// string `url` before copying, so a broken POST.json fails loudly here
-// instead of reaching the gate as garbage. The copy itself is byte for
-// byte, so the two runs the grader does always write identical bytes.
-//
-// Local check, the way the grader runs it:
-//   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
+// main.ts — NEON DASH build helper (Node 22, stdlib only).
+// Copies the entry files into an output directory and validates POST.json.
+// Usage: node main.ts [outDir]   (default: ./work/out)
+// Deterministic: file bytes are copied unchanged, no timestamps are embedded.
+import { copyFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 
-import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+const ROOT = resolve(import.meta.dirname);
+const OUT = resolve(process.argv[2] || join(ROOT, "work", "out"));
 
-const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? "/bot";
-const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+const FILES = ["game.html", "POST.json", "LICENSE", "README.md"];
 
-const source = join(BOT_DIR, "POST.json");
-const target = join(OUTPUT_DIR, "POST.json");
+mkdirSync(OUT, { recursive: true });
 
-try {
-  const raw = readFileSync(source, "utf8");
-  const parsed: unknown = JSON.parse(raw);
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    Array.isArray(parsed) ||
-    typeof (parsed as { url?: unknown }).url !== "string"
-  ) {
-    throw new Error("POST.json is not a JSON object with a string url");
+for (const name of FILES) {
+  const src = join(ROOT, name);
+  const dst = join(OUT, name);
+  copyFileSync(src, dst);
+  const bytes = statSync(dst).size;
+  console.log(`copied ${name} -> ${dst} (${bytes} bytes)`);
+}
+
+// Validate POST.json: must parse and carry a url string.
+const post = JSON.parse(readFileSync(join(OUT, "POST.json"), "utf8"));
+if (typeof post.url !== "string" || post.url.length === 0) {
+  console.error("POST.json has no url string");
+  process.exit(1);
+}
+console.log(`POST.json OK — url: ${post.url}`);
+
+// Sanity: the game file must mention the game title and the demo hook.
+const game = readFileSync(join(OUT, "game.html"), "utf8");
+for (const needle of ["NEON DASH", "__NEON_DASH__", "demo"]) {
+  if (!game.includes(needle)) {
+    console.error(`game.html is missing ${needle}`);
+    process.exit(1);
   }
-} catch (err) {
-  console.error(`POST.json in ${BOT_DIR} is not usable: ${(err as Error).message}`);
-  process.exit(1);
 }
-
-mkdirSync(OUTPUT_DIR, { recursive: true });
-try {
-  copyFileSync(source, target);
-} catch (err) {
-  console.error(`could not copy POST.json from ${BOT_DIR}: ${(err as Error).message}`);
-  process.exit(1);
-}
+console.log("game.html OK — NEON DASH + demo hook present");
+console.log(`build done: ${OUT}`);
