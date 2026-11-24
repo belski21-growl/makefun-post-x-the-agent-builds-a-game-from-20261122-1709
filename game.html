@@ -13,7 +13,7 @@
     background: radial-gradient(1200px 700px at 50% -10%, #3b1155 0%, #160a2e 45%, #0b0618 100%);
     color: #fff; user-select: none;
   }
-  #wrap { position: relative; width: 480px; max-width: 100vw; height: 720px; max-height: 100vh; }
+  #wrap { position: relative; width: 540px; max-width: 100vw; height: 960px; max-height: 100vh; }
   canvas { display: block; width: 100%; height: 100%; background: #12082a; border-radius: 6px; }
   .hud {
     position: absolute; left: 0; right: 0; display: flex; justify-content: space-between;
@@ -24,7 +24,7 @@
   #hudBottom { bottom: 0; align-items: flex-end; }
   .hud .col { display: flex; flex-direction: column; gap: 2px; }
   .hud .right { align-items: flex-end; text-align: right; }
-  #stars { font-size: 26px; letter-spacing: 3px; line-height: 1; color: #ffd23f; }
+  #stars { font-size: 30px; letter-spacing: 3px; line-height: 1; color: #ffd23f; }
   #stars .off { color: rgba(255,255,255,.22); }
   #lives { font-size: 20px; letter-spacing: 2px; line-height: 1.1; }
   #lives .lost { opacity: .25; filter: grayscale(1); }
@@ -81,7 +81,7 @@
   #finalCash { font-size: 20px; font-weight: 700; color: #7dff9b; margin-top: 4px; }
   #finalStats { margin-top: 10px; font-size: 13px; line-height: 1.7; color: rgba(255,255,255,.8); }
   #demoBadge {
-    position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 6;
+    position: absolute; top: 132px; left: 50%; transform: translateX(-50%); z-index: 6;
     font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #0b0618;
     background: #ffe259; border-radius: 999px; padding: 4px 12px; pointer-events: none;
   }
@@ -96,7 +96,7 @@
 </head>
 <body>
 <div id="wrap">
-  <canvas id="game" width="480" height="720"></canvas>
+  <canvas id="game" width="540" height="960"></canvas>
 
   <div id="hudTop" class="hud">
     <div class="col">
@@ -136,7 +136,7 @@
       <b>&larr; &rarr;</b> / <b>A D</b> or swipe &mdash; switch lane<br>
       <b>&uarr;</b> / <b>W</b> or swipe up &mdash; NITRO &nbsp;&middot;&nbsp; <b>&darr;</b> / <b>S</b> &mdash; brake<br>
       <b>N</b> nitro &middot; <b>Shield</b> absorbs a crash &middot; <b>Magnet</b> pulls cash<br>
-      3 lives &middot; near-miss = bonus + combo &middot; wanted 1&ndash;5 stars
+      3 lives &middot; near-miss = bonus + combo &middot; wanted 1&ndash;5 stars &middot; &#128747; heli hunts you at 3&#9733;+
     </div>
     <button id="startBtn" class="bigbtn">▶ &nbsp;START ENGINE</button>
   </div>
@@ -163,18 +163,18 @@
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const W = 480, H = 720;
+const W = 540, H = 960;   // r4: full-screen 9:16 (was 480x720 2:3 — letterbox in the video)
 
 // --- URL mode: "demo" enables the autopilot (game.html?demo=1) -------
 const params = new URLSearchParams(location.search);
 const DEMO = params.get("demo") === "1" || params.get("demo") === "true";
 
-// --- Road geometry ------------------------------------------------------
-const ROAD_L = 58, ROAD_R = 422;                 // road edges
-const LANES = [118, 240, 362];                   // lane centre x
-const LANE_W = 122;
-const PLAYER_Y = 598;
-const SPAWN_Y = 96;                              // just below the sky strip
+// --- Road geometry (9:16) ------------------------------------------------
+const ROAD_L = 60, ROAD_R = 480;                 // road edges
+const LANES = [130, 270, 410];                   // lane centre x
+const LANE_W = 140;
+const PLAYER_Y = 800;
+const SPAWN_Y = 140;                             // just below the sky strip
 
 // --- Game state -----------------------------------------------------------
 const state = {
@@ -211,10 +211,11 @@ const state = {
   policeOnScreen: 0,
 };
 
-const player = { lane: 1, x: LANES[1], w: 52, h: 84, targetX: LANES[1] };
+const player = { lane: 1, x: LANES[1], w: 56, h: 92, targetX: LANES[1] };
 let entities = [];   // traffic, police, trucks, barricades, cash, powerups
 let particles = [];  // sparks / smoke / cash sparkles
 let floaters = [];   // floating score text
+let heli = null;     // police helicopter (r4): {x, y, enter} — visual + spotlight, no collision
 const dbg = { lastHit: null, trace: [] }; // diagnostics: last damaging hit + recent autopilot decisions
 
 // --- DOM ------------------------------------------------------------------
@@ -308,7 +309,12 @@ function toast(text, ms) {
 }
 function addScore(n, x, y, label) {
   state.score += Math.round(n);
-  if (x !== undefined) floaters.push({ x, y, text: (label || "+") + Math.round(n), t: 0, life: 0.9 });
+  // r4: floating text jitters sideways and is capped, so scores never stack
+  // in one unreadable pile on top of each other.
+  if (x !== undefined) {
+    if (floaters.length > 6) floaters.shift();
+    floaters.push({ x: x + rand(-26, 26), y: y - floaters.length * 24, text: (label || "+") + Math.round(n), t: 0, life: 0.9 });
+  }
 }
 function burst(x, y, color, n, spd) {
   for (let i = 0; i < n; i++) {
@@ -343,14 +349,14 @@ function spawnTraffic() {
     if (!laneFreeForSpawn(lane)) continue;
     const roll = Math.random();
     const wanted = state.wanted;
-    if (roll < 0.10 + wanted * 0.02 && wanted >= 2) {
-      entities.push({ type: "police", lane, x: LANES[lane], y: SPAWN_Y, w: 52, h: 84, own: rand(205, 245), color: "#14141c", flash: Math.random() * 10, passed: false });
+    if (roll < 0.10 + wanted * 0.02 + (heli ? 0.05 : 0) && wanted >= 2) {
+      entities.push({ type: "police", lane, x: LANES[lane], y: SPAWN_Y, w: 56, h: 92, own: rand(205, 245), color: "#14141c", flash: Math.random() * 10, passed: false });
     } else if (roll < 0.30) {
-      entities.push({ type: "truck", lane, x: LANES[lane], y: SPAWN_Y, w: 56, h: 122, own: rand(88, 118), color: pick(TRUCK_COLORS), passed: false });
+      entities.push({ type: "truck", lane, x: LANES[lane], y: SPAWN_Y, w: 60, h: 130, own: rand(88, 118), color: pick(TRUCK_COLORS), passed: false });
     } else if (roll < 0.44) {
-      entities.push({ type: "barricade", lane, x: LANES[lane], y: SPAWN_Y, w: 96, h: 26, own: 0, color: "#ff7b00", passed: false });
+      entities.push({ type: "barricade", lane, x: LANES[lane], y: SPAWN_Y, w: 104, h: 26, own: 0, color: "#ff7b00", passed: false });
     } else {
-      entities.push({ type: "car", lane, x: LANES[lane], y: SPAWN_Y, w: 50, h: 80, own: rand(125, 195), color: pick(TRAFFIC_COLORS), passed: false });
+      entities.push({ type: "car", lane, x: LANES[lane], y: SPAWN_Y, w: 54, h: 86, own: rand(125, 195), color: pick(TRAFFIC_COLORS), passed: false });
     }
     return; // one spawn per tick keeps the road readable
   }
@@ -370,9 +376,11 @@ function spawnPower() {
 
 // --- Wanted level ------------------------------------------------------------
 function updateWanted() {
-  // Stars rise with time alive and with score.
+  // Stars rise with time alive and with score. r4: /3600 (was /4500) so a
+  // strong 30 s autopilot run reaches 5 stars — the helicopter + max heat
+  // climax the video's hook frame shows.
   const byTime = 1 + Math.floor(state.time / 20);
-  const byScore = 1 + Math.floor(state.score / 4500);
+  const byScore = 1 + Math.floor(state.score / 3600);
   state.wanted = clamp(Math.max(byTime, byScore), 1, 5);
 }
 
@@ -414,11 +422,14 @@ function autopilot(dt) {
   };
 
   // 1) Threat in MY lane inside the look-ahead?
+  // r4b: barricades are static (own speed 0), so they need an earlier
+  // reaction than moving traffic — look 520px ahead for them, 400 for the rest.
   let threat = null, threatDist = Infinity;
   for (const e of entities) {
     if (!isThreat(e) || !inLane(e, player.lane)) continue;
     const d = PLAYER_Y - e.y;       // >0 means ahead of the player
-    if (d > -40 && d < LOOK && d < threatDist) { threat = e; threatDist = d; }
+    const look = e.type === "barricade" ? 520 : LOOK;
+    if (d > -40 && d < look && d < threatDist) { threat = e; threatDist = d; }
   }
 
   let wantLane = player.lane;
@@ -525,7 +536,7 @@ els.mute.addEventListener("click", () => {
 
 // --- Game flow ---------------------------------------------------------------
 function resetWorld() {
-  entities = []; particles = []; floaters = [];
+  entities = []; particles = []; floaters = []; heli = null;
   Object.assign(state, {
     time: 0, distance: 0, score: 0, cash: 0, lives: 3, combo: 1, comboTimer: 0,
     comboBest: 1, wanted: 1, speed: 0, nitro: 100, nitroActive: false,
@@ -657,6 +668,18 @@ function update(dt) {
   state.powerT -= dt;
   if (state.powerT <= 0) { spawnPower(); state.powerT = rand(9, 14); }
 
+  // --- police helicopter (r4): arrives at 3 stars, hovers above the road
+  // tracking the player's lane, spotlight sweeping the highway. Visual
+  // pressure + it calls in more police cars; it never collides.
+  if (state.wanted >= 3 && !heli) {
+    heli = { x: player.x, y: 88, enter: 0 };
+  }
+  if (heli) {
+    heli.enter = Math.min(1, heli.enter + dt * 0.5);
+    heli.y = 88 + Math.sin(state.time * 1.3) * 6;   // r4b: hovers in the sky band, above the road — never sits on a police car
+    heli.x += clamp(player.x - heli.x, -95 * dt, 95 * dt);
+  }
+
   // --- entities ---
   state.policeOnScreen = 0;
   const pBox = { x: player.x, y: PLAYER_Y, w: player.w, h: player.h };
@@ -674,13 +697,15 @@ function update(dt) {
     if (!e.passed && (e.type === "car" || e.type === "truck" || e.type === "police") && e.y - e.h / 2 > PLAYER_Y + player.h / 2) {
       e.passed = true;
       const lateral = Math.abs(e.x - player.x);
-      if (lateral > 46 && lateral < 135) {
+      if (lateral > 50 && lateral < 152) {   // r4: lane spacing is 140 now (was 122)
         state.nearMiss++;
         state.combo = Math.min(8, state.combo + 1);
         state.comboBest = Math.max(state.comboBest, state.combo);
         state.comboTimer = 4;
         addScore(50 * state.combo, player.x, PLAYER_Y - 70, "NEAR MISS +");
-        toast("💨 NEAR MISS! x" + state.combo, 600);
+        // r4: high combos get a louder, longer banner — the climax moment.
+        if (state.combo >= 4) toast("🔥 COMBO x" + state.combo + " — NEAR MISS!", 1100);
+        else toast("💨 NEAR MISS! x" + state.combo, 600);
         sfx.nearMiss();
       }
     }
@@ -735,7 +760,7 @@ function update(dt) {
 
 // --- Drawing ---------------------------------------------------------------------
 const BUILDINGS = [];
-for (let i = 0; i < 14; i++) {
+for (let i = 0; i < 15; i++) {
   BUILDINGS.push({ x: i * 36 + rand(-6, 6), w: rand(18, 32), h: rand(18, 58), lit: Math.random() < 0.6 });
 }
 const PALMS = [];
@@ -751,21 +776,21 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 function drawSky() {
-  const g = ctx.createLinearGradient(0, 0, 0, 110);
+  const g = ctx.createLinearGradient(0, 0, 0, 130);
   g.addColorStop(0, "#2b0a4e"); g.addColorStop(0.45, "#a4136e"); g.addColorStop(0.8, "#ff7b00"); g.addColorStop(1, "#ffb347");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 110);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 130);
   // Sun.
-  const sg = ctx.createRadialGradient(240, 66, 4, 240, 66, 46);
+  const sg = ctx.createRadialGradient(270, 80, 4, 270, 80, 52);
   sg.addColorStop(0, "#fff7ae"); sg.addColorStop(0.55, "#ffd23f"); sg.addColorStop(1, "rgba(255,110,60,0)");
-  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(240, 66, 46, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#ffdf6b"; ctx.beginPath(); ctx.arc(240, 66, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(270, 80, 52, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#ffdf6b"; ctx.beginPath(); ctx.arc(270, 80, 30, 0, Math.PI * 2); ctx.fill();
   // Skyline silhouettes.
   ctx.fillStyle = "#1c0636";
-  for (const b of BUILDINGS) ctx.fillRect(b.x, 102 - b.h, b.w, b.h + 8);
+  for (const b of BUILDINGS) ctx.fillRect(b.x, 122 - b.h, b.w, b.h + 8);
   ctx.fillStyle = "rgba(255,226,89,.85)";
   for (const b of BUILDINGS) {
     if (!b.lit) continue;
-    for (let wy = 102 - b.h + 5; wy < 96; wy += 9) {
+    for (let wy = 122 - b.h + 5; wy < 116; wy += 9) {
       for (let wx = b.x + 4; wx < b.x + b.w - 3; wx += 8) {
         if (Math.random() < 0.35) ctx.fillRect(wx, wy, 2.5, 3.5);
       }
@@ -774,33 +799,89 @@ function drawSky() {
   // Palm silhouettes on the left verge.
   ctx.strokeStyle = "#12082a"; ctx.fillStyle = "#12082a"; ctx.lineWidth = 3;
   for (const p of PALMS) {
-    ctx.beginPath(); ctx.moveTo(p.x, 104); ctx.quadraticCurveTo(p.x + 3, 104 - p.h * 0.6, p.x + 6, 104 - p.h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, 124); ctx.quadraticCurveTo(p.x + 3, 124 - p.h * 0.6, p.x + 6, 124 - p.h); ctx.stroke();
     for (let f = 0; f < 5; f++) {
       const a = -Math.PI * (0.15 + f * 0.18);
-      ctx.beginPath(); ctx.moveTo(p.x + 6, 104 - p.h);
-      ctx.quadraticCurveTo(p.x + 6 + Math.cos(a) * 12, 104 - p.h + Math.sin(a) * 12 - 4, p.x + 6 + Math.cos(a) * 20, 104 - p.h + Math.sin(a) * 20 + 6);
+      ctx.beginPath(); ctx.moveTo(p.x + 6, 124 - p.h);
+      ctx.quadraticCurveTo(p.x + 6 + Math.cos(a) * 12, 124 - p.h + Math.sin(a) * 12 - 4, p.x + 6 + Math.cos(a) * 20, 124 - p.h + Math.sin(a) * 20 + 6);
       ctx.stroke();
     }
   }
 }
 function drawRoad() {
   // Shoulders + asphalt.
-  ctx.fillStyle = "#241133"; ctx.fillRect(0, 104, W, H - 104);
+  ctx.fillStyle = "#241133"; ctx.fillRect(0, 130, W, H - 130);
   const rg = ctx.createLinearGradient(ROAD_L, 0, ROAD_R, 0);
   rg.addColorStop(0, "#2c2c3a"); rg.addColorStop(0.5, "#23232f"); rg.addColorStop(1, "#2c2c3a");
-  ctx.fillStyle = rg; ctx.fillRect(ROAD_L, 104, ROAD_R - ROAD_L, H - 104);
+  ctx.fillStyle = rg; ctx.fillRect(ROAD_L, 130, ROAD_R - ROAD_L, H - 130);
   // Neon edge lines.
-  ctx.fillStyle = "#ff2fb3"; ctx.fillRect(ROAD_L - 4, 104, 4, H - 104);
-  ctx.fillStyle = "#00e5ff"; ctx.fillRect(ROAD_R, 104, 4, H - 104);
-  ctx.fillStyle = "rgba(255,47,179,.25)"; ctx.fillRect(ROAD_L - 8, 104, 2, H - 104);
-  ctx.fillStyle = "rgba(0,229,255,.25)"; ctx.fillRect(ROAD_R + 6, 104, 2, H - 104);
+  ctx.fillStyle = "#ff2fb3"; ctx.fillRect(ROAD_L - 4, 130, 4, H - 130);
+  ctx.fillStyle = "#00e5ff"; ctx.fillRect(ROAD_R, 130, 4, H - 130);
+  ctx.fillStyle = "rgba(255,47,179,.25)"; ctx.fillRect(ROAD_L - 8, 130, 2, H - 130);
+  ctx.fillStyle = "rgba(0,229,255,.25)"; ctx.fillRect(ROAD_R + 6, 130, 2, H - 130);
   // Lane dashes scrolling with speed.
   ctx.fillStyle = "rgba(255,255,255,.55)";
-  for (const lx of [179, 301]) {
-    for (let y = 104 - 64 + state.roadOffset; y < H; y += 64) {
+  for (const lx of [200, 340]) {
+    for (let y = 130 - 64 + state.roadOffset; y < H; y += 64) {
       ctx.fillRect(lx - 3, y, 6, 34);
     }
   }
+}
+// --- Police helicopter spotlight (r4): a sweeping cone of light from the
+// heli down onto the road, drawn over the asphalt but under the cars. ----
+function drawSpotlight() {
+  if (!heli) return;
+  const sweep = Math.sin(state.time * 0.9) * 0.55;   // cone swings left/right
+  const ax = heli.x, ay = 132;   // cone starts at the bottom of the sky strip
+  const hitX = heli.x + Math.tan(sweep) * 560;
+  const hitY = 760;
+  ctx.save();
+  ctx.globalAlpha = 0.13 * heli.enter;
+  ctx.fillStyle = "#ffe9a8";
+  ctx.beginPath();
+  ctx.moveTo(ax - 8, ay); ctx.lineTo(ax + 8, ay);
+  ctx.lineTo(hitX + 150, hitY); ctx.lineTo(hitX - 150, hitY);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.20 * heli.enter;
+  ctx.beginPath(); ctx.ellipse(hitX, hitY, 150, 34, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawHeli() {
+  if (!heli) return;
+  const x = heli.x, y = heli.y;
+  ctx.save();
+  ctx.globalAlpha = heli.enter;
+  ctx.translate(x, y);
+  // Cyan glow so the dark heli reads against the sunset sky.
+  ctx.fillStyle = "rgba(0,229,255,.20)";
+  ctx.beginPath(); ctx.ellipse(0, 0, 48, 22, 0, 0, Math.PI * 2); ctx.fill();
+  // Rotor (spinning blur bars).
+  const rot = state.time * 9;
+  ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 3;
+  ctx.save(); ctx.rotate(rot); ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(40, 0); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.rotate(rot + Math.PI / 2); ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(40, 0); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = "rgba(0,0,0,.35)";
+  ctx.beginPath(); ctx.ellipse(0, 26, 34, 7, 0, 0, Math.PI * 2); ctx.fill();
+  // Tail boom + body, cyan-outlined so it pops off the skyline.
+  ctx.fillStyle = "#1c1c28";
+  ctx.fillRect(-58, -4, 34, 7);
+  ctx.fillStyle = "#23232f";
+  roundRect(-26, -13, 52, 26, 10); ctx.fill();
+  ctx.strokeStyle = "#00e5ff"; ctx.lineWidth = 2;
+  roundRect(-26, -13, 52, 26, 10); ctx.stroke();
+  // Cockpit + PD marking.
+  ctx.fillStyle = "#0e2233";
+  roundRect(8, -9, 15, 16, 5); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
+  ctx.fillText("PD", -2, 4);
+  // Flashing red/blue belly light.
+  const on = Math.floor(state.time * 5) % 2 === 0;
+  ctx.fillStyle = on ? "#ff2f4e" : "#2f7bff";
+  ctx.beginPath(); ctx.arc(0, 15, 4, 0, Math.PI * 2); ctx.fill();
+  // Searchlight dot.
+  ctx.fillStyle = "#fff7ae";
+  ctx.beginPath(); ctx.arc(14, 12, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 function drawCar(x, y, w, h, color, opts) {
   opts = opts || {};
@@ -931,9 +1012,13 @@ function render() {
   if (state.shake > 0) ctx.translate(rand(-state.shake, state.shake) * 0.5, rand(-state.shake, state.shake) * 0.5);
   drawSky();
   drawRoad();
-  // Entities sorted so nearer (lower y) draw on top.
+  drawSpotlight();
+  // r4: cash + power-ups are drawn FIRST (on the road), vehicles after —
+  // cash no longer paints over the cars.
   const sorted = entities.slice().sort((a, b) => a.y - b.y);
-  for (const e of sorted) drawEntity(e);
+  for (const e of sorted) if (e.type === "cash" || e.type === "power") drawEntity(e);
+  for (const e of sorted) if (e.type !== "cash" && e.type !== "power") drawEntity(e);
+  drawHeli();
   if (state.mode !== "start") drawPlayer();
   drawParticles();
   drawFloaters();
@@ -941,13 +1026,13 @@ function render() {
   if (state.nitroActive && state.mode === "playing") {
     ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 2;
     for (let i = 0; i < 8; i++) {
-      const x = rand(ROAD_L + 10, ROAD_R - 10), y = rand(120, H - 40), len = rand(30, 70);
+      const x = rand(ROAD_L + 10, ROAD_R - 10), y = rand(140, H - 40), len = rand(30, 70);
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + len); ctx.stroke();
     }
   }
   ctx.restore();
   // Vignette.
-  const vg = ctx.createRadialGradient(240, 360, 240, 240, 360, 520);
+  const vg = ctx.createRadialGradient(270, 480, 280, 270, 480, 680);
   vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(5,0,15,.45)");
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
@@ -964,6 +1049,9 @@ function updateHUD() {
   els.cash.textContent = "$" + state.cash.toLocaleString("en-US");
   els.speed.textContent = Math.round(state.speed * 0.55);
   els.combo.textContent = "x" + state.combo;
+  // r4: a hot combo (x4+) grows + glows in the HUD so the climax reads at a glance.
+  els.combo.style.fontSize = state.combo >= 4 ? "30px" : "20px";
+  els.combo.style.color = state.combo >= 4 ? "#ffe259" : "#ff9df5";
   els.nitroBar.style.width = Math.round(state.nitro) + "%";
   els.powerup.textContent =
     (state.shield ? "🛡 SHIELD  " : "") + (state.magnet > 0 ? "🧲 MAGNET " + Math.ceil(state.magnet) + "s" : "");
@@ -986,13 +1074,15 @@ requestAnimationFrame(loop);
 // window.__VICE_CHASE__ exposes live state so a headless check can verify the
 // autopilot survives (demo mode) without reading the screen.
 window.__VICE_CHASE__ = {
-  version: "vice-chase-1.0.0",
+  version: "vice-chase-1.1.0",
   demo: DEMO,
   getState() {
     return {
       mode: state.mode, time: +state.time.toFixed(2), score: state.score,
       cash: state.cash, lives: state.lives, wanted: state.wanted,
-      combo: state.combo, nearMiss: state.nearMiss, smashed: state.smashed,
+      combo: state.combo, comboBest: state.comboBest,
+      nearMiss: state.nearMiss, smashed: state.smashed,
+      heli: heli !== null,
       speed: Math.round(state.speed), autopilot: state.autopilot,
       lastHit: dbg.lastHit, trace: dbg.trace.slice(-40),
     };

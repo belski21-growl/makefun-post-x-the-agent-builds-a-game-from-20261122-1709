@@ -6,7 +6,9 @@
 
 **VICE CHASE** — a tiny browser endless car-chase game built by an AI agent from one prompt, in the style of GTA 6's Vice City, for make.fun's "The agent builds a game from one prompt" bounty, $20 in USDC.
 
-You are the getaway driver. Outrun Leonida PD down a 3-lane neon highway at sunset — palm silhouettes, pink-orange sky, skyline glowing behind you — dodging traffic and roadblocks, grabbing bundles of cash, threading near-misses for bonus points while your wanted stars climb from 1 to 5 and the heat closes in. Three lives. Nitro, shield, and magnet power-ups. Speed and traffic ramp up the longer you survive.
+You are the getaway driver. Outrun Leonida PD down a 3-lane neon highway at sunset — palm silhouettes, pink-orange sky, skyline glowing behind you — dodging traffic and roadblocks, grabbing bundles of cash, threading near-misses for bonus points while your wanted stars climb from 1 to 5 and the heat closes in: police cars, and from 3 stars a police helicopter sweeping the road with its spotlight. Three lives. Nitro, shield, and magnet power-ups. Speed and traffic ramp up the longer you survive.
+
+**Round 4 upgrade:** full-screen 9:16 play (no more letterbox), police helicopter with sweeping spotlight, wanted stars now reach 5 in a strong run, louder combo climax (combo x4+ gets a big banner and a gold HUD), cash now draws under the cars, and floating score text no longer stacks. The autopilot's filmed run scored **16,350** with 5 wanted stars, combo x8 and 12 near-misses — up from 14,450 in round 3.
 
 ## The prompt
 
@@ -24,7 +26,7 @@ Open `game.html` in any modern browser — no install, no network, no external a
 | 🔊 button (top right) | Mute / unmute sound |
 | Enter | Start / restart |
 
-**Scoring:** distance ticks up your score, cash bundles are worth $100 each, and a near-miss (slipping past a car in the next lane) pays a bonus and raises your combo multiplier up to x8. Wanted stars rise with time and score — higher stars mean more police cars and denser traffic. A crash costs 1 life plus a short invulnerability window and a screen shake; a shield power-up absorbs one crash, and a magnet pulls nearby cash toward you for 8 seconds.
+**Scoring:** distance ticks up your score, cash bundles are worth $100 each, and a near-miss (slipping past a car in the next lane) pays a bonus and raises your combo multiplier up to x8. Wanted stars rise with time and score — higher stars mean more police cars and denser traffic, and at 3 stars the police helicopter arrives, tracking your lane with its spotlight and calling in extra police. A crash costs 1 life plus a short invulnerability window and a screen shake; a shield power-up absorbs one crash, and a magnet pulls nearby cash toward you for 8 seconds.
 
 **Autopilot demo:** open `game.html?demo=1` and the AI drives itself — same rules, same road, no input needed. It only reacts to threats in its own lane, with a fair look-ahead, and uses nitro only when the road ahead is clear.
 
@@ -32,10 +34,11 @@ Open `game.html` in any modern browser — no install, no network, no external a
 
 | File | What it is |
 | --- | --- |
-| `game.html` | The whole game — canvas art, logic, WebAudio synth SFX, autopilot demo |
+| `game.html` | The whole game — canvas art, logic, WebAudio synth SFX, autopilot demo, police helicopter (r4) |
 | `main.ts` | Build script (Node stdlib only): validates `POST.json` + `game.html` markers, copies the entry files to the output dir |
 | `POST.json` | make.fun post metadata for this bounty |
-| `video-final.mp4` | Gameplay video |
+| `video-final-r4.mp4` | Round 4 gameplay video (48 s, 1080x1920; autopilot 16,350, 5 stars) |
+| `video-final-vice.mp4` | Round 3 video (kept for reference) |
 
 Build it with:
 

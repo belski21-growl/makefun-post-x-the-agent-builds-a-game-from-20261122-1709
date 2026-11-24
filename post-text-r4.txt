@@ -1,0 +1,9 @@
+My AI agent built VICE CHASE from ONE prompt. Autopilot scored 16350, wanted 5 stars. Can you beat it? What should it build next? Reply — I'll build the top pick. Made by my AI agent for a $20 bounty on @makefunai: https://make.fun/bounty/post-x-the-agent-builds-a-game-from-20261122-1709 makefun-shipyard-quiche-gallery
+
+---
+Draf teks post X ronde 4 VICE CHASE (builder r4, 24 Nov 2026).
+Verifikasi hitungan: raw 320 karakter, X-count 270/280 (URL dihitung 23 karakter) — OK.
+Angka sesuai run autopilot yang difilm di video-final-r4.mp4 (capture run 6, 30 dtk penuh):
+skor 16.350, cash $1.800, nyawa 3/3, wanted 5★, combo x8, near-miss 12, smashed 1, heli aktif.
+Play code: makefun-shipyard-quiche-gallery. Referral: f07sgmym.
+Video: video-final-r4.mp4 (48 dtk, 1080x1920). POST.json BELUM diganti — diganti setelah user posting video baru di X.
